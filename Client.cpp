@@ -28,7 +28,7 @@ void Client::choice_interface()
     string choice;
     while (true)
     {
-        cout << "\nChoose An Action\n\n'1' for Withdraw\n'2' for Deposit\n'3' for Transfer\n'4' for Exit\n\nEnter here: ";
+        cout << "\nChoose An Action\n\n'1' for Withdraw\n'2' for Deposit\n'3' for Transfer\n'4' for Show Balance\n'5' for Exit\n\nEnter here: ";
 
         // cin.ignore(numeric_limits<streamsize>::max(), '\n');
         getline(cin, choice);
@@ -42,6 +42,8 @@ void Client::choice_interface()
         else if (choice[0] == '3')
             transfer();
         else if (choice[0] == '4')
+            enquiry();
+        else if (choice[0] == '5')
             break;
         else
             cout << "\nInvalid Input - Try Again\n";
@@ -59,7 +61,7 @@ void Client::signin()
 
     cout << "\nEnter Your Bank Username: ";
     // cin.ignore(numeric_limits<streamsize>::max(), '\n');
-    getline(cin, username);
+    getline(cin, this->username);
     cout << "Enter Your Bank Password: ";
     // cin.ignore(numeric_limits<streamsize>::max(), '\n');
     getline(cin, password);
@@ -67,7 +69,7 @@ void Client::signin()
     try
     {
         prepared = connection->prepareStatement("SELECT * FROM account WHERE username = ? AND password = ?");
-        prepared->setString(1, username);
+        prepared->setString(1, this->username);
         prepared->setString(2, password);
 
         result = prepared->executeQuery();
@@ -108,17 +110,17 @@ void Client::withdraw()
     sql::PreparedStatement* prepared2 = nullptr;
     sql::ResultSet* result = nullptr;
 
-    string _amount = "0";
+    string _amount;
     int balance, amount;
 
     try
     {
-        cout << "\nUSERNAME BEFORE WITHDRAW: " << username << "\n";
         prepared = connection->prepareStatement("SELECT balance FROM account WHERE username = ?");
-        prepared->setString(1, username);
+        prepared->setString(1, this->username);
 
         result = prepared->executeQuery();
 
+        result->next();
         balance = result->getInt("balance");
 
         cout << "\nEnter Withdraw Amount: ";
@@ -128,14 +130,21 @@ void Client::withdraw()
         amount = stoi(_amount);
 
         if (amount > balance)
+        {
+            delete prepared;
+            delete prepared2;
+            delete result;
+
             cout << "\nYour Available Balance Is: " << balance << " - Try Again\n";
+            return;
+        }
         else
         {
             balance -= amount;
 
             prepared2 = connection->prepareStatement("UPDATE account SET balance = ? WHERE username = ?");
             prepared2->setInt(1, balance);
-            prepared2->setString(2, username);
+            prepared2->setString(2, this->username);
 
             prepared2->executeUpdate();
         }
@@ -176,7 +185,7 @@ void Client::deposit()
     sql::PreparedStatement* prepared2 = nullptr;
     sql::ResultSet* result = nullptr;
 
-    string _amount = "0";
+    string _amount;
     int balance, amount;
 
     try
@@ -185,7 +194,7 @@ void Client::deposit()
         prepared->setString(1, username);
 
         result = prepared->executeQuery();
-
+        result->next();
         balance = result->getInt("balance");
 
         cout << "\nEnter Deposit Amount: ";
@@ -252,14 +261,15 @@ void Client::enquiry()
         prepared->setString(1, username);
         result = prepared->executeQuery();
 
+        result->next();
         balance = result->getInt("balance");
     }
-    catch (sql::SQLException exception)
+    catch (sql::SQLException _exception)
     {
         delete prepared;
         delete result;
 
-        cout << "\nException: " << exception.what() << "\n";
+        cout << "\nException: " << _exception.what() << "\n";
         return;
     }
 
@@ -271,7 +281,118 @@ void Client::enquiry()
 
 void Client::transfer()
 {
-    cout << "Transfer\n";
+    auto connection = link->get_connection();
+    auto statement = link->get_statement();
+    sql::PreparedStatement* prepared = nullptr;
+    sql::PreparedStatement* prepared2 = nullptr;
+    sql::ResultSet* result = nullptr;
+
+    string _amount, _accno;
+    int balance, amount, account_number;
+
+    try
+    {
+        prepared2 = connection->prepareStatement("SELECT account_number FROM account WHERE account_number = ?");
+
+        cout << "\nEnter The Recipients Account Number: ";
+        getline(cin, _accno);
+        account_number = stoi(_accno);
+
+        prepared2->setInt(1, account_number);
+        result = prepared2->executeQuery();
+
+        if (!result->next())
+        {
+            delete result;
+            delete prepared;
+            delete prepared2;
+
+            cout << "\nThere Is No Account Under Account Number: " << account_number << " - Try Again\n";
+            return;
+        }
+
+        delete result;
+        delete prepared2;
+
+        prepared = connection->prepareStatement("SELECT balance FROM account WHERE username = ?");
+        prepared->setString(1, this->username);
+
+        result = prepared->executeQuery();
+
+        result->next();
+        balance = result->getInt("balance");
+
+        cout << "\nEnter Transfer Amount: ";
+        // cin.ignore(numeric_limits<streamsize>::max(), '\n');
+        getline(cin, _amount);
+
+        amount = stoi(_amount);
+
+        if (amount > balance)
+        {
+            delete prepared;
+            delete prepared2;
+            delete result;
+
+            cout << "\nYour Available Balance Is: " << balance << " - Try Again\n";
+            return;
+        }
+        else
+        {
+            delete prepared;
+            delete result;
+
+            prepared = connection->prepareStatement("SELECT balance FROM account WHERE account_number = ?");
+            prepared->setInt(1, account_number);
+            result = prepared->executeQuery();
+
+            result->next();
+            int balance2 = result->getInt("balance");
+
+            balance -= amount;
+            balance2 += amount;
+
+            delete prepared;
+
+            prepared = connection->prepareStatement("UPDATE account SET balance = ? WHERE username = ?");
+            prepared->setInt(1, balance);
+            prepared->setString(2, username);
+
+            prepared->executeUpdate();
+
+            prepared2 = connection->prepareStatement("UPDATE account SET balance = ? WHERE account_number = ?");
+            prepared2->setInt(1, balance2);
+            prepared2->setInt(2, account_number);
+
+            prepared2->executeUpdate();
+        }
+    }
+    catch (sql::SQLException _exception)
+    {
+        delete prepared;
+        delete prepared2;
+        delete result;
+
+        cout << "\nException: " << _exception.what() << "\n";
+
+        return;
+    }
+    catch (std::exception _exception)
+    {
+        delete prepared;
+        delete prepared2;
+        delete result;
+
+        cout << "\nException: " << _exception.what() << "\n";
+
+        return;
+    }
+
+    delete prepared;
+    delete prepared2;
+    delete result;
+
+    cout << "\nSuccessfully Transfered Money\nYour Available Balance Is: " << balance << "\n";
 }
 
 void Client::signup()
@@ -279,8 +400,11 @@ void Client::signup()
     auto connection = link->get_connection();
     auto statement = link->get_statement();
     sql::PreparedStatement* prepared = nullptr;
+    sql::PreparedStatement* prepared2 = nullptr;
+    sql::ResultSet* result = nullptr;
 
-    string first_name, last_name, date_of_birth, gender, username, password, bank_id;
+    string first_name, last_name, date_of_birth, gender, username, password, _bank_id;
+    int bank_id;
 
     cout << "\nEnter Your First Name: ";
     // cin.ignore(numeric_limits<streamsize>::max(), '\n');
@@ -296,7 +420,7 @@ void Client::signup()
     getline(cin, gender); // assuming one enters only m, f, o, M, F, O
     cout << "Enter The Bank ID You Are Applying For: ";
     // cin.ignore(numeric_limits<streamsize>::max(), '\n');
-    getline(cin, bank_id);
+    getline(cin, _bank_id);
     cout << "Create Your Username: ";
     // cin.ignore(numeric_limits<streamsize>::max(), '\n');
     getline(cin, username);
@@ -304,9 +428,25 @@ void Client::signup()
     // cin.ignore(numeric_limits<streamsize>::max(), '\n');
     getline(cin, password);
 
+    bank_id = stoi(_bank_id);
+
     try
     {
         prepared = connection->prepareStatement("INSERT INTO request() VALUES(?, ?, ?, ?, ?, ?, ?)");
+        prepared2 = connection->prepareStatement("SELECT id FROM bank WHERE id = ?");
+        
+        prepared2->setInt(1, bank_id);
+        result = prepared2->executeQuery();
+
+        if (!result->next())
+        {
+            delete result;
+            delete prepared;
+            delete prepared2;
+
+            cout << "\nThere Is No Bank With ID - " << bank_id << " - Try Again\n";
+            return;
+        }
 
         prepared->setString(1, username);
         prepared->setString(2, password);
@@ -314,20 +454,36 @@ void Client::signup()
         prepared->setString(4, last_name);
         prepared->setString(6, date_of_birth);
         prepared->setString(5, gender);
-        prepared->setString(7, bank_id);
+        prepared->setInt(7, bank_id);
+
 
         prepared->execute();
     }
-    catch (sql::SQLException exception)
+    catch (sql::SQLException _exception)
     {
+        delete result;
         delete prepared;
+        delete prepared2;
 
-        cout << "\nException: " << exception.what() << "\n";
+        cout << "\nException: " << _exception.what() << "\n";
+
+        return;
+    }
+    catch (std::exception _exception)
+    {
+        delete result;
+        delete prepared;
+        delete prepared2;
+
+        cout << "\nException: " << _exception.what() << "\n";
 
         return;
     }
 
+    delete result;
     delete prepared;
+    delete prepared2;
+
     cout << "\nSuccessfully Signed Up - Please Wait For Manager Approval\n";
 }
 

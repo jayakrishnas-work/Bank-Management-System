@@ -144,9 +144,12 @@ void Manager::validate_client()
 				else if (choice[0] == '2')
 					statement->execute("DELETE FROM request WHERE username = '" + username + "'");
 				else if (choice[0] == '3')
-					continue;
-				else if (choice[0] == '4')
 					break;
+				else if (choice[0] == '4')
+				{
+					delete result;
+					return;
+				}
 				else
 					cout << "\nInvalid Input - Try Again\n";
 			}
@@ -176,7 +179,7 @@ void Manager::remove_client()
 
 	try
 	{
-		cout << "Enter Account Number: ";
+		cout << "\nEnter Account Number: ";
 		// cin.ignore(numeric_limits<streamsize>::max(), '\n');
 		getline(cin, _accno);
 
@@ -193,17 +196,24 @@ void Manager::remove_client()
 			cout << "Username: " << result->getString("username") << "\n";
 			while (true)
 			{
-				int choice = 0;
-				cout << "\nSelect Your Choice\n\n1 - Remove\n2 - Exit\n\nEnter Here: ";
-				cin >> choice;
-				if (choice == 1)
+				string choice;
+				cout << "\nSelect Your Choice\n\n'1' for Remove\n'2' for Exit\n\nEnter Here: ";
+				getline(cin, choice);
+				if (choice.length() != 1)
+					cout << "\nInvalid Choice - Try Again\n";
+				else if (choice[0] == '1')
 					break;
-				else if (choice == 2)
+				else if (choice[0] == '2')
 					return;
 				else
 					cout << "\nInvalid Choice - Try Again\n";
 			}
-			statement->execute("DELETE * FROM account WHERE account_number = " + to_string(account_number));
+		}
+		else
+		{
+			delete result;
+			cout << "There Is No Account With Account Number - " << account_number << " - Try Again\n";
+			return;
 		}
 	}
 	catch (sql::SQLException _exception)
@@ -219,6 +229,7 @@ void Manager::remove_client()
 		return;
 	}
 
+	statement->execute("DELETE FROM account WHERE account_number = " + to_string(account_number));
 	delete result;
 	cout << "\nSuccessfully Deleted\n";
 }

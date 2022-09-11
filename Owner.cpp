@@ -113,9 +113,10 @@ void Owner::add_bank()
 
 		prepared->execute();
 
-		//delete result;
-		//result = statement->executeQuery("SELECT id FROM bank ORDER BY id DESC LIMIT 1");
-		//id = result->getInt("id");
+		delete result;
+		result = statement->executeQuery("SELECT id FROM bank ORDER BY id DESC LIMIT 1");
+		result->next();
+		id = result->getInt("id");
 	}
 	catch (sql::SQLException _exception)
 	{
@@ -142,7 +143,7 @@ void Owner::add_bank()
 	delete prepared2;
 	delete result;
 
-	cout << "\nBank Successfully Added\n";// - ID: " << id << "\n";
+	cout << "\nSuccessfully Added The Bank - ID: " << id << "\n";
 }
 
 void Owner::add_manager()
@@ -176,8 +177,9 @@ void Owner::add_manager()
 
 		prepared->execute();
 
-		//result = statement->executeQuery("SELECT id FROM manager ORDER BY id DESC LIMIT 1");
-		//id = result->getInt("id");
+		result = statement->executeQuery("SELECT id FROM manager ORDER BY id DESC LIMIT 1");
+		result->next();
+		id = result->getInt("id");
 	}
 	catch (sql::SQLException _exception)
 	{
@@ -190,7 +192,7 @@ void Owner::add_manager()
 	delete prepared;
 	delete result;
 
-	cout << "\nSuccessfully Added The Manager\n";// -ID: " << id << "\n";
+	cout << "\nSuccessfully Added The Manager - ID: " << id << "\n";
 }
 
 void Owner::delete_bank()
